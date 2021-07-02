@@ -1,0 +1,4 @@
+<Files ~ "\.(jpe?g|png|gif|mp3|wav|ogg|m4a|mp4|mov|wmv|avi|m3u8)$">
+	Header set Access-Control-Allow-Origin *
+	Header set Access-Control-Allow-Headers *
+</Files>

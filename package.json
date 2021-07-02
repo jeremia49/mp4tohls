@@ -1,0 +1,19 @@
+{
+  "name": "mp4tohls",
+  "version": "1.0.0",
+  "description": "cut any mp4 files to hls ",
+  "main": "index.js",
+  "scripts": {
+    "start-dev": "node_modules/.bin/nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jeremia49",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.1",
+    "file-type": "^16.5.0",
+    "node-fetch": "^2.6.1",
+    "nodemon": "^2.0.7",
+    "uuid": "^8.3.2"
+  }
+}
