@@ -12,6 +12,8 @@ const bodyParser = require('body-parser');
 // const util = require('util');
 // const exec = util.promisify(require('child_process').exec);
 
+const jobs = {};
+
 const VALIDHTTPREGEX = '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
 
 const TARGETDOWNLOAD = path.join(__dirname, "/temp/")
@@ -91,19 +93,181 @@ app.get("/",(req, res)=>{
                         <h1 class="text-white text-center"> MP4 to HLS</h1>
                         <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
                     </div>
-                    <form method="POST" action="/create" enctype="multipart/form-data">
+                    <form method="POST" action="/create" enctype="multipart/form-data" id="form" class="mb-3">
                         <div class="form-group m-auto d-block mb-3 text-center w-50">
                             <label class="mb-3 px-3" for="URLFile">Upload your MP4 file : </label>
                             <input type="file" class="form-control" id="URLFile" required value="" name="file">
                         </div>
-                        <button type="submit" class="btn btn-primary d-block m-auto w-10">Convert it !</button>
+                        <button type="submit" class="btn btn-primary d-block m-auto w-10" id="submitButton">Convert it !</button>
                     </form>
+                    <div class="progress mt-2 mb-3 mx-5" id="barcontainer">
+                            <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progressbar"></div>
+                    </div>
+                    <div id="message_container"></div>
                 </div>
-
             </body>
+            <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.form/4.3.0/jquery.form.min.js" integrity="sha384-qlmct0AOBiA2VPZkMY3+2WqkHtIQ9lSdAsAn5RUJD/3vA5MKDgSGcdmIv4ycVxyn" crossorigin="anonymous"></script>
+            <script>
+                window.onload = function(){
+
+                    let bar = $('#progressbar');
+                    let percent = $('#progressbar');
+                    let bar_container = $('#barcontainer');
+                    let form = $('#form');
+                    let message_container = $('#message_container');
+                    bar_container.hide();
+
+                    let uuidjob = "";
+
+                    let intervalRefresh;
+                    
+                    function refresh(uuid){
+                        fetch("/status?id="+uuidjob)
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(jsonResponse) {
+                            jsonResponse = jsonResponse.msg
+                            if(jsonResponse.isProcessing === undefined){
+
+                                message_container.empty().append(\`
+                                    <div class="alert alert-danger mb-3 mt-0" role="alert" id="Message"> 
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+                                            <path d="M1.293 1.293a1 1 0 0 1 1.414 0L8 6.586l5.293-5.293a1 1 0 1 1 1.414 1.414L9.414 8l5.293 5.293a1 1 0 0 1-1.414 1.414L8 9.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L6.586 8 1.293 2.707a1 1 0 0 1 0-1.414z"/>
+                                        </svg>
+                                        Failed ! <a href="/"> Try Again </a>
+                                    </div>\`)
+                                    clearInterval(intervalRefresh);
+
+                            }else if(jsonResponse.isProcessing === false){
+
+                                if(jsonResponse.status === true){
+                                    message_container.empty().append(\`
+                                    <div class="alert alert-success mb-3 mt-0" role="alert" id="Message"> 
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg" viewBox="0 0 16 16">
+                                        <path d="M13.485 1.431a1.473 1.473 0 0 1 2.104 2.062l-7.84 9.801a1.473 1.473 0 0 1-2.12.04L.431 8.138a1.473 1.473 0 0 1 2.084-2.083l4.111 4.112 6.82-8.69a.486.486 0 0 1 .04-.045z"/>
+                                    </svg>
+                                        Success ! <br>URL : <a href="\${jsonResponse.msg.msg.url}" target="_blank">\${jsonResponse.msg.msg.url}</a> <br> <a href="/"> Try Again </a>
+                                    </div>\`)
+                                    clearInterval(intervalRefresh);
+                                }else{
+                                    message_container.empty().append(\`
+                                    <div class="alert alert-danger mb-3 mt-0" role="alert" id="Message"> 
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-lg" viewBox="0 0 16 16">
+                                            <path d="M1.293 1.293a1 1 0 0 1 1.414 0L8 6.586l5.293-5.293a1 1 0 1 1 1.414 1.414L9.414 8l5.293 5.293a1 1 0 0 1-1.414 1.414L8 9.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L6.586 8 1.293 2.707a1 1 0 0 1 0-1.414z"/>
+                                        </svg>
+                                        Failed ! <br>Error : \${jsonResponse.msg.msg.error} <br> <a href="/"> Try Again </a>
+                                    </div>\`)
+                                    clearInterval(intervalRefresh);
+                                }
+
+                            }
+
+                        });
+                    }
+
+                    $('#submitButton').click(function(event){
+                        bar_container.show();
+
+                        $('form').ajaxForm({
+                            beforeSend: function() {
+                                let percentVal = '0%';
+                                bar.width(percentVal);
+                                percent.html(percentVal);
+                            },
+                            uploadProgress: function(event, position, total, percentComplete) {
+                                let percentVal = percentComplete + '%';
+                                bar.width(percentVal);
+                                percent.html(percentVal);
+                            },
+                            complete: function(xhr) {
+                                let data = JSON.parse(xhr.responseText);
+                                uuidjob = data.jobID
+
+                                setTimeout(function(){
+                                    bar_container.hide();
+                                    form.slideToggle(300).hide();
+                                    
+                                    message_container.append(\`
+                                    <div class="alert alert-warning mb-3 mt-0" role="alert" id="Message"> 
+                                        <div class="spinner-border" role="status">
+                                            <span class="sr-only"></span>
+                                        </div>
+                                        Processing your file
+                                    </div>\`)
+                                    
+                                    intervalRefresh = setInterval(refresh, 1000)
+                                },1500)
+                            }
+                        });
+                    })
+
+                };
+            </script>
         </html>
     `)
 })
+
+app.get('/create',async(req,res)=>{
+    await res.redirect("/")
+})
+
+app.post('/create',
+    multer({ storage: diskStorage }).single("file"), 
+    async (req, res) => {
+        
+        const jobid = uuidv4();
+        jobs[jobid] = {isProcessing:true,status:false,msg:{}}
+
+        const create = (req,res)=>{
+            return new Promise(async (resolve,reject)=>{
+                const file = req.file.path;
+                if (!file) {
+                    reject ( {error:"No File is selected"})
+                }
+                
+                const m3u8name = uuidv4()
+                const filename = uuidv4()
+
+                let msg={}
+
+                try{
+                    const ext = await fileType.fromFile(file)
+                    if(ext.ext !== "mp4"){
+                        await fs.unlink(req.file.path)
+                        reject ({error:"Not a mp4 file"})
+                    }
+
+                    //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
+                    await splitter(file,filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
+                    msg = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
+                }catch(e){
+                    message = {error:"Error while splitting file"}
+                    console.log(e)
+                }finally{
+                    await fs.unlink(req.file.path)
+                    if(msg.error !== ""){
+                        reject(msg)
+                    }else{
+                        resolve(msg)
+                    }
+                }
+            })
+            
+        }
+    
+        create(req,res)
+        .then(msg=>{
+            jobs[jobid] = {isProcessing:false,status:true,msg:{msg}}
+        })
+        .catch(msg=>{
+            jobs[jobid] = {isProcessing:false,status:false,msg:{msg}}
+        })
+
+        res.status(200).json({"jobID":jobid})    
+})
+
 
 app.get('/api/create', async (req, res) => {
     const filename = uuidv4();
@@ -148,102 +312,10 @@ app.get('/api/create', async (req, res) => {
     return
 })
 
-app.get('/create',async(req,res)=>{
-    await res.redirect("/")
-})
-
-app.post('/create',
-    multer({ storage: diskStorage }).single("file"), 
-    async (req, res) => {
-        
-        const create = async (req,res)=>{
-            let message = ""
-
-            const file = req.file.path;
-            if (!file) {
-                message = {error:"No File is selected"}
-                return message
-            }
-            
-            const m3u8name = uuidv4()
-            const filename = uuidv4()
-            try{
-                const ext = await fileType.fromFile(file)
-                if(ext.ext !== "mp4"){
-                    await fs.unlink(req.file.path)
-
-                    message = {error:"Not a mp4 file"}
-                    return message
-                }
-
-                //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
-                await splitter(file,filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
-                message = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
-            }catch(e){
-                message = {error:"Error while splitting file"}
-                console.log(e)
-            }
-            
-            await fs.unlink(req.file.path)
-
-            return message
-        }
-    
-        const msg = await create(req,res)
-        if (msg.error !== ""){
-            res.send(`
-            <html>
-                <head>
-                    <title>MP4 to HLS</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
-                </head>
-                <body style="background-color:#4a4a4a; color:#ffffff" >
-                    <div class="container-md ">
-                        <div class="title mt-3 pt-5 pb-3 text-center">
-                            <h1 class="text-white text-center"> MP4 to HLS</h1>
-                            <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
-                        </div>
-                        <div class="alert alert-danger mb-3 mt-0" role="alert">
-                            ${msg.error}
-                        </div>
-                        <form method="GET" action="/">
-                            <button type="submit" class="btn btn-primary d-block m-auto w-10">Back !</button>
-                        </form>
-                    </div>
-                </body>
-            </html>
-            `)
-            return
-        }else{
-            res.send(`
-            <html>
-                <head>
-                    <title>MP4 to HLS</title>
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
-                </head>
-                <body style="background-color:#4a4a4a; color:#ffffff" >
-                    <div class="container-md ">
-                        <div class="title mt-3 pt-5 pb-3 text-center">
-                            <h1 class="text-white text-center"> MP4 to HLS</h1>
-                            <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
-                        </div>
-                        <div class="alert alert-success mb-3 mt-0" role="alert">
-                            M3U8 URL : <a href="${msg.url}" target="_blank">${msg.url}</a>
-                        </div>
-                        <form method="GET" action="/">
-                            <button type="submit" class="btn btn-primary d-block m-auto w-10">Back !</button>
-                        </form>
-                    </div>
-
-                </body>
-            </html>
-            `)
-            return
-        }
-
-    
+app.get('/status',async(req,res)=>{
+    const jobid = req.query.id
+    res.status(200).json({msg:jobs[jobid]})
+    delete jobs[req.query.id];
 })
 
 // app.get('/shell',async(req,res)=>{
