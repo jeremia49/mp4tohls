@@ -126,7 +126,12 @@ app.get('/api/create', async (req, res) => {
     
     const m3u8name = uuidv4()
 
-    try{          
+    try{  
+        const ext = await fileType.fromFile(TARGETDOWNLOAD+filename+".mp4")
+        if(ext.ext !== "mp4"){
+            res.status(400).json({error:"Not a mp4 file"})
+        }
+                
         //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
         await splitter(TARGETDOWNLOAD+filename+".mp4",filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
         res.status(200).json({error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`})
@@ -159,7 +164,15 @@ app.post('/create',
             
             const m3u8name = uuidv4()
             const filename = uuidv4()
-            try{          
+            try{
+                const ext = await fileType.fromFile(file)
+                if(ext.ext !== "mp4"){
+                    await fs.unlink(req.file.path)
+
+                    message = {error:"Not a mp4 file"}
+                    return message
+                }
+
                 //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
                 await splitter(file,filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
                 message = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
