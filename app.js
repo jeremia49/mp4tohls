@@ -6,15 +6,25 @@ const cors = require('cors');
 const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
+const multer = require("multer");
 
 const VALIDHTTPREGEX = '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
 
 const FFMPEGPATH = 'C:\\ffmpeg-4.4-full_build\\bin\\ffmpeg.exe'
 if(!FFMPEGPATH) ffmpeg.setFfmpegPath(FFMPEGPATH)
 
-const TARGETDOWNLOAD = "C:\\Users\\jerem\\Documents\\Project\\mp4tohls\\temp\\"
-const TARGETPUBLIC = "C:\\Users\\jerem\\Documents\\Project\\mp4tohls\\public\\hls\\"
+const TARGETDOWNLOAD = path.join(__dirname, "/temp/")
+const TARGETPUBLIC = path.join(__dirname, "/public/hls/")
 const BASEDOMAIN = "http://localhost:3000/hls/"
+
+const diskStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, TARGETDOWNLOAD);
+    },
+    filename:function(req,file,cb){
+        cb(null, uuidv4())
+    },
+});
 
 const getData = (url) =>{
     const response = axios({
@@ -65,8 +75,7 @@ app.use(cors())
 
 app.use(express.static(path.join(__dirname, 'public')))
 
-
-app.get("/", (req, res)=>{
+app.get("/",(req, res)=>{
     res.send(`
         <html>
             <head>
@@ -75,13 +84,14 @@ app.get("/", (req, res)=>{
             </head>
             <body style="background-color:#4a4a4a; color:#ffffff" >
                 <div class="container-md ">
-                    <div class="title mt-3 pt-5 pb-3">
+                    <div class="title mt-3 pt-5 pb-3 text-center">
                         <h1 class="text-white text-center"> MP4 to HLS</h1>
+                        <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
                     </div>
-                    <form method="POST" action="/create">
+                    <form method="POST" action="/create" enctype="multipart/form-data">
                         <div class="form-group m-auto d-block mb-3 text-center w-50">
-                            <label class="mb-3 px-3" for="URLFile">MP4 URL : </label>
-                            <input type="text" class="form-control" id="URLFile" required placeholder="https://example.com/video.mp4" value="" name="url">
+                            <label class="mb-3 px-3" for="URLFile">Upload your MP4 file : </label>
+                            <input type="file" class="form-control" id="URLFile" required value="" name="file">
                         </div>
                         <button type="submit" class="btn btn-primary d-block m-auto w-10">Convert it !</button>
                     </form>
@@ -130,106 +140,90 @@ app.get('/api/create', async (req, res) => {
     return
 })
 
-app.use(express.urlencoded());
-app.post('/create', async (req, res) => {
+app.get('/create',async(req,res)=>{
+    await res.redirect("/")
+})
 
-    const create = async (req,res)=>{
-        let message = ""
-        const filename = uuidv4();
+app.post('/create',
+    multer({ storage: diskStorage }).single("file"), 
+    async (req, res) => {
+        
+        const create = async (req,res)=>{
+            let message = ""
 
-        let url = req.body.url
-        if ( checkValid(url)){
-            if(!url.startsWith("http")){
-                url = "https://"+url
-            }
-
-            try{
-                const data = await getData(url)
-                await fs.writeFile(TARGETDOWNLOAD+filename+".mp4",data.data)
-            }catch{
-                message = {error:"Failed to download the file"}
+            const file = req.file.path;
+            if (!file) {
+                message = {error:"No File is selected"}
                 return message
             }
+            
+            const m3u8name = uuidv4()
+            const filename = uuidv4()
+            try{          
+                //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
+                await splitter(file,filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
+                message = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
+            }catch(e){
+                message = {error:"Error while splitting file"}
+                console.log(e)
+            }
+            
+            await fs.unlink(req.file.path)
 
-        }else{
-            message =  {error:"Unvalid URL"}
             return message
         }
-        
-        const m3u8name = uuidv4()
-
-        try{          
-            //  (inputfile,filename,localpath,targetbaseurl,m3u8target)
-            await splitter(TARGETDOWNLOAD+filename+".mp4",filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
-            message = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
-        }catch(e){
-            message = {error:"Error while splitting file",msg:e}
-            console.log(e)
-        }
-        
-        await fs.unlink(TARGETDOWNLOAD+filename+".mp4")
-
-        return message
-    }
     
-    const msg = await create(req,res)
-    if (msg.error !== ""){
-        res.send(`
-        <html>
-            <head>
-                <title>MP4 to HLS</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
-            </head>
-            <body style="background-color:#4a4a4a; color:#ffffff" >
-                <div class="container-md ">
-                    <div class="title mt-3 pt-5 pb-3">
-                        <h1 class="text-white text-center"> MP4 to HLS</h1>
-                    </div>
-                    <div class="alert alert-danger mb-3 mt-0" role="alert">
-                        ${msg.error}
-                    </div>
-                    <form method="POST" action="/create">
-                        <div class="form-group m-auto d-block mb-3 text-center w-50">
-                            <label class="mb-3 px-3" for="URLFile">MP4 URL : </label>
-                            <input type="text" class="form-control" required id="URLFile" placeholder="https://example.com/video.mp4" value="" name="url">
+        const msg = await create(req,res)
+        if (msg.error !== ""){
+            res.send(`
+            <html>
+                <head>
+                    <title>MP4 to HLS</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+                </head>
+                <body style="background-color:#4a4a4a; color:#ffffff" >
+                    <div class="container-md ">
+                        <div class="title mt-3 pt-5 pb-3 text-center">
+                            <h1 class="text-white text-center"> MP4 to HLS</h1>
+                            <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
                         </div>
-                        <button type="submit" class="btn btn-primary d-block m-auto w-10">Convert it !</button>
-                    </form>
-                </div>
-
-            </body>
-        </html>
-        `)
-        return
-    }else{
-        res.send(`
-        <html>
-            <head>
-                <title>MP4 to HLS</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
-            </head>
-            <body style="background-color:#4a4a4a; color:#ffffff" >
-                <div class="container-md ">
-                    <div class="title mt-3 pt-5 pb-3">
-                        <h1 class="text-white text-center"> MP4 to HLS</h1>
-                    </div>
-                    <div class="alert alert-success mb-3 mt-0" role="alert">
-                        M3U8 URL : <a href="${msg.url}" target="_blank">${msg.url}</a>
-                    </div>
-                    <form method="POST" action="/create">
-                        <div class="form-group m-auto d-block mb-3 text-center w-50">
-                            <label class="mb-3 px-3" for="URLFile">MP4 URL : </label>
-                            <input type="text" class="form-control" id="URLFile" required placeholder="https://example.com/video.mp4" value="" name="url">
+                        <div class="alert alert-danger mb-3 mt-0" role="alert">
+                            ${msg.error}
                         </div>
-                        <button type="submit" class="btn btn-primary d-block m-auto w-10">Convert it !</button>
-                    </form>
-                </div>
+                        <form method="GET" action="/">
+                            <button type="submit" class="btn btn-primary d-block m-auto w-10">Back !</button>
+                        </form>
+                    </div>
+                </body>
+            </html>
+            `)
+            return
+        }else{
+            res.send(`
+            <html>
+                <head>
+                    <title>MP4 to HLS</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU" crossorigin="anonymous">
+                </head>
+                <body style="background-color:#4a4a4a; color:#ffffff" >
+                    <div class="container-md ">
+                        <div class="title mt-3 pt-5 pb-3 text-center">
+                            <h1 class="text-white text-center"> MP4 to HLS</h1>
+                            <a href="https://github.com/jeremia49/mp4tohls">Please help me to improve this site</a>
+                        </div>
+                        <div class="alert alert-success mb-3 mt-0" role="alert">
+                            M3U8 URL : <a href="${msg.url}" target="_blank">${msg.url}</a>
+                        </div>
+                        <form method="GET" action="/">
+                            <button type="submit" class="btn btn-primary d-block m-auto w-10">Back !</button>
+                        </form>
+                    </div>
 
-            </body>
-        </html>
-        `)
-        return
-    }
+                </body>
+            </html>
+            `)
+            return
+        }
 
     
 })
@@ -240,4 +234,3 @@ app.use((req, res, next) => {
 });
 
 app.listen(port)
-
