@@ -169,6 +169,7 @@ app.get("/",(req, res)=>{
 
                     $('#submitButton').click(function(event){
                         bar_container.show();
+                        form.slideToggle(100).hide();
 
                         $('form').ajaxForm({
                             beforeSend: function() {
@@ -186,10 +187,8 @@ app.get("/",(req, res)=>{
                                 uuidjob = data.jobID
 
                                 setTimeout(function(){
-                                    bar_container.hide();
-                                    form.slideToggle(300).hide();
-                                    
-                                    message_container.append(\`
+                                    bar_container.hide()
+                                    message_container.empty().append(\`
                                     <div class="alert alert-warning mb-3 mt-0" role="alert" id="Message"> 
                                         <div class="spinner-border" role="status">
                                             <span class="sr-only"></span>
