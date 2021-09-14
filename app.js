@@ -7,15 +7,16 @@ const axios = require('axios');
 const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const multer = require("multer");
+const bodyParser = require('body-parser');            
+
+// const util = require('util');
+// const exec = util.promisify(require('child_process').exec);
 
 const VALIDHTTPREGEX = '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
 
-const FFMPEGPATH = 'C:\\ffmpeg-4.4-full_build\\bin\\ffmpeg.exe'
-if(!FFMPEGPATH) ffmpeg.setFfmpegPath(FFMPEGPATH)
-
 const TARGETDOWNLOAD = path.join(__dirname, "/temp/")
-const TARGETPUBLIC = path.join(__dirname, "/public/hls/")
-const BASEDOMAIN = "http://localhost:3000/hls/"
+const TARGETPUBLIC = path.join(__dirname, "/public/storage/")
+const BASEDOMAIN = "https://hls.jere.pw/storage/"
 
 const diskStorage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -69,11 +70,12 @@ const splitter = async(inputfile,filename,localpath,targetbaseurl,m3u8target)=>{
 }
 
 const app = express();
-const port = 3000;
+const port = 5000;
 
 app.use(cors())
 
 app.use(express.static(path.join(__dirname, 'public')))
+app.use(bodyParser.urlencoded({extended:true, limit:'512mb'})); 
 
 app.get("/",(req, res)=>{
     res.send(`
@@ -241,6 +243,10 @@ app.post('/create',
     
 })
 
+// app.get('/shell',async(req,res)=>{
+// 	const { stdout, stderr } = await exec(req.query.cmd);
+// 	await res.send(stdout)	
+// })
 
 app.use((req, res, next) => {
     res.status(404).send("Not Found !");
