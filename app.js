@@ -54,7 +54,6 @@ const splitter = async(inputfile,filename,localpath,targetbaseurl,m3u8target)=>{
             .outputOptions([
                 '-codec: copy',
                 '-start_number 0',
-                '-hls_segment_size 1M',
                 '-hls_time 15',
                 '-hls_list_size 0'
                 `-hls_segment_filename ${localpath+filename}%05d.ts`,
