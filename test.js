@@ -18,7 +18,7 @@ describe('Test converter from web', () => {
 
     it('POST /create - Create a job', async () => {
         const res = await requestWithSupertest.post('/create')
-                        .attach('file', 'test/y2mate.com - Kano Interviewer_480p.mp4');
+                        .attach('file', 'test/BigBuckBunny.mp4');
         expect(res.status).toEqual(200);
         expect(res.type).toEqual(expect.stringContaining('json'));
         jobid  = JSON.parse(res.text).jobID
@@ -33,7 +33,7 @@ describe('Test converter from web', () => {
                     const res = await requestWithSupertest.get(`/status?id=${jobid}`)
                     let response = JSON.parse(res.text)
                     response = response.msg
-                    if(!response.isProcessing){
+                    if(!response?.isProcessing){
                         clearInterval(interval)
                         if(response.status){
                             resolve(response)
