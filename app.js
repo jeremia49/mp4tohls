@@ -243,7 +243,7 @@ app.post('/create',
                     msg = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
                 }catch(e){
                     msg = {error:"Error while splitting file"}
-                    console.log(e)
+                    console.error(e)
                 }finally{
                     await fs.unlink(req.file.path)
                     if(msg.error !== ""){
