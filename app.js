@@ -63,6 +63,7 @@ const splitter = async(inputfile,filename,localpath,targetbaseurl,m3u8target)=>{
                 resolve(s);
             })
             .on('error', (err)=>{
+		console.error(err);
                 reject(err);
             })
             .save(m3u8target)
@@ -241,7 +242,7 @@ app.post('/create',
                     await splitter(file,filename,TARGETPUBLIC,BASEDOMAIN,TARGETPUBLIC+m3u8name+".m3u8")
                     msg = {error:"",url:`${BASEDOMAIN+m3u8name}.m3u8`}
                 }catch(e){
-                    message = {error:"Error while splitting file"}
+                    msg = {error:"Error while splitting file"}
                     console.log(e)
                 }finally{
                     await fs.unlink(req.file.path)
