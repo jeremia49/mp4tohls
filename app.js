@@ -314,7 +314,10 @@ app.get('/api/create', async (req, res) => {
 app.get('/status',async(req,res)=>{
     const jobid = req.query.id
     res.status(200).json({msg:jobs[jobid]})
-    if(!jobs[jobid]?.isProcessing){
+	if(!jobs[jobid]){
+		return
+	}
+    if(!jobs[jobid].isProcessing){
 		delete jobs[req.query.id];
 	} 
 })
