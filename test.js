@@ -4,6 +4,8 @@ const requestWithSupertest = request(server);
 
 let jobid = ""
 
+jest.setTimeout(10000)
+
 describe('Test Homepage', () => {
 
     it('GET /', async () => {
@@ -33,7 +35,8 @@ describe('Test converter from web', () => {
                     const res = await requestWithSupertest.get(`/status?id=${jobid}`)
                     let response = JSON.parse(res.text)
                     response = response.msg
-                    if(!response?.isProcessing){
+                    if(!response) return
+                    if(!response.isProcessing){
                         clearInterval(interval)
                         if(response.status){
                             resolve(response)
