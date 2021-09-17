@@ -31,8 +31,10 @@ describe('Test converter from web', () => {
 
         const reload =  async ()=>{
             return await new Promise((resolve,reject)=>{
+                let counter = 0;
                 const interval = setInterval(async ()=>{
-                    const res = await requestWithSupertest.get(`/status?id=${jobid}`)
+                    counter++;
+                    const res = await requestWithSupertest.get(`/status?id=${jobid}&ref=${counter}`)
                     let response = JSON.parse(res.text)
                     response = response.msg
                     if(!response) return

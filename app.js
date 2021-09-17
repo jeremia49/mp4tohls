@@ -121,9 +121,11 @@ app.get("/",(req, res)=>{
                     let uuidjob = "";
 
                     let intervalRefresh;
-                    
+                    let counter = 0;
+
                     function refresh(uuid){
-                        fetch("/status?id="+uuidjob)
+                        counter++;
+                        fetch( \`/status?id=\${uuidjob}&ref=\${counter}\`)
                         .then(function(response) {
                             return response.json();
                         })
