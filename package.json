@@ -12,7 +12,7 @@
   "version": "1.0.0",
   "main": "app.js",
   "devDependencies": {
-    "jest": "^27.4.5",
+    "jest": "^27.5.0",
     "nodemon": "^2.0.15",
     "supertest": "^6.2.2"
   },
