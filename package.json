@@ -13,7 +13,7 @@
   "main": "app.js",
   "devDependencies": {
     "jest": "^28.1.1",
-    "nodemon": "^2.0.16",
+    "nodemon": "^2.0.19",
     "supertest": "^6.2.3"
   },
   "scripts": {
